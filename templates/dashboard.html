@@ -1,0 +1,15 @@
+{% extends 'layouts/_base.html' %}
+
+{% block title %}Dashboard - Sistema de Notas{% endblock %}
+
+{% block content %}
+<h2>Bienvenido, {{ user.username }}!</h2>
+
+<nav>
+    <a href="/admin/">Administración</a>
+    <a href="{% url 'logout' %}">Cerrar Sesión</a>
+</nav>
+
+<h3>Sistema de Gestión de Notas</h3>
+<p>Panel de control del sistema.</p>
+{% endblock %}
