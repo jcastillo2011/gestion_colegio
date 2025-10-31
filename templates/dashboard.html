@@ -2,14 +2,129 @@
 
 {% block title %}Dashboard - Sistema de Notas{% endblock %}
 
-{% block content %}
-<h2>Bienvenido, {{ user.username }}!</h2>
+{% block dashboard_content %}
+<!-- Sección 1: Mensaje de Bienvenida -->
+<section class="welcome-section">
+    <h2>Bienvenido, 
+        {% if user_type == 'student' %}
+            {{ user_data.name_student }}
+        {% else %}
+            {{ user_data.name_teacher }}
+        {% endif %}
+    !</h2>
+    {% if user_type == 'student' %}
+        <div class="student-score">
+            <h3>Tu Puntuación Actual</h3>
+            <p>Promedio General: <strong>85.5</strong></p>
+        </div>
+    {% else %}
+        <div class="teacher-info">
+            <h3>Panel de Profesor</h3>
+            <p>Gestiona las evaluaciones de tus estudiantes</p>
+        </div>
+    {% endif %}
+</section>
 
-<nav>
-    <a href="/admin/">Administración</a>
-    <a href="{% url 'logout' %}">Cerrar Sesión</a>
-</nav>
+<!-- Sección 2: Materias Inscritas -->
+{% if user_type == 'student' %}
+<section class="subjects-section">
+    <h3>Materias Inscritas</h3>
+    <div class="subjects-grid">
+        <div class="subject-card">
+            <h4>Matemáticas</h4>
+            <p>Profesor: Juan Pérez</p>
+            <p>Promedio: 88</p>
+        </div>
+        <div class="subject-card">
+            <h4>Historia</h4>
+            <p>Profesor: María García</p>
+            <p>Promedio: 92</p>
+        </div>
+        <div class="subject-card">
+            <h4>Ciencias</h4>
+            <p>Profesor: Carlos López</p>
+            <p>Promedio: 76</p>
+        </div>
+    </div>
+</section>
+{% endif %}
 
-<h3>Sistema de Gestión de Notas</h3>
-<p>Panel de control del sistema.</p>
+<!-- Sección 3: Evaluaciones -->
+<section class="evaluations-section">
+    {% if user_type == 'student' %}
+        <h3>Próximas Evaluaciones</h3>
+        <table class="evaluations-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Materia</th>
+                    <th>Tipo</th>
+                    <th>Tema</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for evaluation in evaluations %}
+                <tr>
+                    <td>{{ evaluation.date|date:"d/m/Y" }}</td>
+                    <td>{{ evaluation.course.name_course }}</td>
+                    <td>{{ evaluation.type }}</td>
+                    <td>{{ evaluation.subject }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4">No hay evaluaciones programadas</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <h3>Gestionar Evaluaciones</h3>
+        <form method="post" action="{% url 'update_evaluations' %}">
+            {% csrf_token %}
+            <table class="evaluations-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Materia</th>
+                        <th>Tipo</th>
+                        <th>Tema</th>
+                        <th>Estudiante</th>
+                        <th>Puntuación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for evaluation in evaluations %}
+                    <tr>
+                        <td>
+                            <input type="datetime-local" name="date_{{ evaluation.id }}" 
+                                   value="{{ evaluation.date|date:'Y-m-d\TH:i' }}" required>
+                        </td>
+                        <td>{{ evaluation.course.name_course }}</td>
+                        <td>
+                            <input type="text" name="type_{{ evaluation.id }}" 
+                                   value="{{ evaluation.type }}" required>
+                        </td>
+                        <td>
+                            <input type="text" name="subject_{{ evaluation.id }}" 
+                                   value="{{ evaluation.subject }}" required>
+                        </td>
+                        <td>{{ evaluation.student.name_student }}</td>
+                        <td>
+                            <input type="number" name="score_{{ evaluation.id }}" 
+                                   value="{{ evaluation.score }}" step="0.01" min="0" max="100" required>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6">No hay evaluaciones registradas</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if evaluations %}
+                <button type="submit">Actualizar Evaluaciones</button>
+            {% endif %}
+        </form>
+    {% endif %}
+</section>
 {% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'layouts/_base.html' %}
+
+{% block title %}Registro - Sistema de Notas{% endblock %}
+
+{% block auth_content %}
+<h2>Registrarse</h2>
+
+{% if messages %}
+    {% for message in messages %}
+        <div style="color: {% if message.tags == 'success' %}green{% else %}red{% endif %};">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <div>
+        <label>Tipo de Usuario:</label>
+        <select name="user_type" required>
+            <option value="">Seleccionar...</option>
+            <option value="student">Estudiante</option>
+            <option value="teacher">Profesor</option>
+        </select>
+    </div>
+    <div>
+        <label>Nombre de Usuario:</label>
+        <input type="text" name="username" required>
+    </div>
+    <div>
+        <label>Email:</label>
+        <input type="email" name="email" required>
+    </div>
+    <div>
+        <label>Cédula:</label>
+        <input type="text" name="ci" required>
+    </div>
+    <div>
+        <label>Contraseña:</label>
+        <input type="password" name="password" required>
+    </div>
+    <div>
+        <label>Confirmar Contraseña:</label>
+        <input type="password" name="confirm_password" required>
+    </div>
+    <button type="submit">Registrarse</button>
+</form>
+
+<p><a href="{% url 'home' %}">¿Ya tienes cuenta? Inicia sesión</a></p>
+{% endblock %}

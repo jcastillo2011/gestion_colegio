@@ -7,8 +7,42 @@
     <title>{% block title %}Sistema de Notas{% endblock %}</title>
 </head>
 <body>
-    {% block content %}
-    {% endblock %}
+    {% if user_type %}
+    <div class="dashboard-container">
+        <!-- Aside Navigation -->
+        <aside class="sidebar">
+            <nav class="nav-menu">
+                <ul>
+                    <li><a href="{% url 'dashboard' %}">Inicio</a></li>
+                    <li><a href="#salon">Salón de Clases</a></li>
+                    <li><a href="#contenido">Contenido Programático</a></li>
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <p>Perfil: 
+                        {% if user_type == 'student' %}
+                            {{ user_data.name_student }}
+                        {% else %}
+                            {{ user_data.name_teacher }}
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="{% url 'logout' %}" class="logout-btn">Cerrar Sesión</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            {% block dashboard_content %}
+            {% endblock %}
+        </main>
+    </div>
+    {% else %}
+        {% block auth_content %}
+        {% endblock %}
+    {% endif %}
 </body>
 </html>
 
