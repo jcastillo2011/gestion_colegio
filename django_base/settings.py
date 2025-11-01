@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'model_students',
     'pages',
-    'compressor', 
 ]
 
 MIDDLEWARE = [
@@ -133,9 +132,3 @@ LOGIN_URL = '/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 
 
-# Compress settings
-COMPRESS_ROOT = BASE_DIR / 'static'
-
-COMPRESS_ENABLED = True
-
-STATICFILES_FINDERS = ('compressor.finders.CompressorFinder',)
