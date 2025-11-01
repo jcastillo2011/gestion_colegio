@@ -38,7 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'model_students',
-    'pages'
+    'pages',
+    'compressor', 
 ]
 
 MIDDLEWARE = [
@@ -126,3 +127,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Login settings
 LOGIN_URL = '/'
 LOGIN_REDIRECT_URL = '/dashboard/'
+
+
+# Compress settings
+COMPRESS_ROOT = BASE_DIR / 'static'
+
+COMPRESS_ENABLED = True
+
+STATICFILES_FINDERS = ('compressor.finders.CompressorFinder',)
