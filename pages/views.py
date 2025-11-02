@@ -141,8 +141,11 @@ def classroom(request):
     
     if user_type == 'student':
         user_data = Student.objects.get(ci=user_id)
-        # Obtener todos los estudiantes para mostrar compañeros
-        students = Student.objects.all()
+        # Obtener compañeros del mismo grado ordenados por promedio
+        from django.db.models import Avg
+        students = Student.objects.filter(grade=user_data.grade).annotate(
+            promedio=Avg('punctuation__score')
+        ).order_by('-promedio')
         evaluations = None
     else:
         user_data = Teacher.objects.get(ci=user_id)
