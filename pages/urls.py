@@ -11,6 +11,7 @@ urlpatterns = [
     path('delete-evaluation/<int:eval_id>/', views.delete_evaluation, name='delete_evaluation'),
     path('profile/', views.profile, name='profile'),
     path('settings/', views.settings, name='settings'),
+    path('my-subjects/', views.my_subjects, name='my_subjects'),
     path('update-evaluations/', views.update_evaluations, name='update_evaluations'),
     path('logout/', views.logout_view, name='logout'),
 ]
