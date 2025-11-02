@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from model_students.models import Student, Teacher, Evaluation, Course
+from model_students.models import Student, Teacher, Evaluation, Course, Punctuation
 
 def home(request):
     if request.method == 'POST':
@@ -9,7 +9,7 @@ def home(request):
         
         # Verificar si es estudiante
         try:
-            student = Student.objects.get(name_student=username, password=password)
+            student = Student.objects.get(username=username, password=password)
             request.session['user_type'] = 'student'
             request.session['user_id'] = student.ci
             return redirect('dashboard')
@@ -18,7 +18,7 @@ def home(request):
         
         # Verificar si es profesor
         try:
-            teacher = Teacher.objects.get(name_teacher=username, password=password)
+            teacher = Teacher.objects.get(username=username, password=password)
             request.session['user_type'] = 'teacher'
             request.session['user_id'] = teacher.ci
             return redirect('dashboard')
@@ -46,7 +46,9 @@ def register(request):
         try:
             if is_teacher:
                 Teacher.objects.create(
-                    name_teacher=username,
+                    username=username,
+                    name=username,
+                    last_name='',
                     ci=ci,
                     email=email,
                     password=password
@@ -54,7 +56,9 @@ def register(request):
                 messages.success(request, 'Profesor registrado exitosamente')
             else:
                 Student.objects.create(
-                    name_student=username,
+                    username=username,
+                    name=username,
+                    last_name='',
                     ci=ci,
                     email=email,
                     password=password
@@ -75,19 +79,41 @@ def dashboard(request):
         messages.error(request, 'Debes iniciar sesión para acceder al dashboard')
         return redirect('home')
     
+    from django.utils import timezone
+    
     if user_type == 'student':
         user_data = Student.objects.get(ci=user_id)
-        # Solo evaluaciones del estudiante logueado
-        evaluations = Evaluation.objects.filter(student=user_data).order_by('-date')
+        # Solo puntuaciones del estudiante logueado
+        evaluations = Punctuation.objects.filter(student=user_data).select_related('evaluation').order_by('-evaluation__date')
+        # Calcular evaluaciones aprobadas (score >= 10)
+        approved_evaluations = evaluations.filter(score__gte=10).count()
+        # Contar materias del grado del estudiante
+        courses_count = Course.objects.filter(grade=user_data.grade).count()
+        # Próximas evaluaciones (futuras) del grado del estudiante
+        upcoming_evaluations = Evaluation.objects.filter(
+            course__grade=user_data.grade,
+            date__gt=timezone.now()
+        ).order_by('date')[:5]
     else:
         user_data = Teacher.objects.get(ci=user_id)
         # Solo evaluaciones de cursos asignados al profesor
         evaluations = Evaluation.objects.filter(course__teacher=user_data).order_by('-date')
+        approved_evaluations = 0
+        # Contar materias asignadas al profesor
+        courses_count = Course.objects.filter(teacher=user_data).count()
+        # Próximas evaluaciones del profesor
+        upcoming_evaluations = Evaluation.objects.filter(
+            course__teacher=user_data,
+            date__gt=timezone.now()
+        ).order_by('date')[:5]
     
     return render(request, 'dashboard.html', {
         'user_type': user_type,
         'user_data': user_data,
-        'evaluations': evaluations
+        'evaluations': evaluations,
+        'approved_evaluations': approved_evaluations,
+        'courses_count': courses_count,
+        'upcoming_evaluations': upcoming_evaluations
     })
 
 def update_evaluations(request):
@@ -120,9 +146,9 @@ def classroom(request):
         evaluations = None
     else:
         user_data = Teacher.objects.get(ci=user_id)
-        # Obtener todos los estudiantes y sus evaluaciones
+        # Obtener todos los estudiantes y sus puntuaciones
         students = Student.objects.all()
-        evaluations = Evaluation.objects.all().select_related('student', 'course')
+        evaluations = Punctuation.objects.all().select_related('student', 'evaluation__course')
     
     return render(request, 'classroom.html', {
         'user_type': user_type,

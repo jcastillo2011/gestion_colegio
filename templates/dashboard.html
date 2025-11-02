@@ -17,18 +17,19 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-2xl font-bold mb-2">
-                    ¡Bienvenido, 
-                    {% if user_type == 'student' %}
-                        {{ user_data.name_student }}
-                    {% else %}
-                        {{ user_data.name_teacher }}
-                    {% endif %}!
+                    ¡Bienvenid@, 
+                    
+                     {{ user_data.name | title}}
+                        {{ user_data.last_name | title }}!
                 </h2>
-                {% if user_type == 'student' %}
-                    <p class="text-white/90">Revisa tus calificaciones y progreso académico</p>
-                {% else %}
-                    <p class="text-white/90">Gestiona las evaluaciones de tus estudiantes</p>
-                {% endif %}
+                <div class = "flex gap-2">
+                    {% if user_type == 'student' %}
+                        <p class="text-white/90">Revisa tus calificaciones y progreso académico</p>
+                    {% else %}
+                        <p class="text-white/90">Gestiona las evaluaciones de tus estudiantes</p>
+                    {% endif %}
+                    <span>... Aquí en <strong>Think It</strong>!</span>
+                </div>
             </div>
             <div class="text-6xl opacity-20">
                 {% if user_type == 'student' %}
@@ -47,22 +48,36 @@
     <div class="bg-white rounded-xl p-6 card-shadow card-hover fade-in">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-gray-600 text-sm font-medium">Evaluaciones</p>
-                <p class="text-3xl font-bold text-green-600">
+                <p class="text-gray-600 text-sm font-medium">Evaluaciones Realizadas</p>
+                <p class="text-4xl font-bold text-green-600">
                     {% if evaluations %}
-                        {{ evaluations|length|floatformat:0 }}
+                    {{ evaluations|length }}
                     {% else %}
-                        0
+                    0
                     {% endif %}
                 </p>
+                
+                
             </div>
-            <div class="bg-green-100 p-3 rounded-full">
-                <i class="fas fa-chart-line text-green-600 text-xl"></i>
+            <div class="bg-green-100 flex items-center justify-center w-10 h-10 p-7 rounded-full">
+                <i class="fa-solid fa-layer-group text-green-600 text-2xl"></i>
             </div>
         </div>
     </div>
     
-    <div class="bg-white rounded-xl p-6 card-shadow">
+    <div class="bg-white rounded-xl p-6 card-shadow card-hover fade-in">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-600 text-sm font-medium">Evaluaciones Aprobadas</p>
+                <p class="text-4xl font-bold text-purple-600">{{ approved_evaluations }}</p>
+            </div>
+            <div class="bg-purple-100 w-10 h-10 p-7 flex items-center justify-center rounded-full">
+                <i class="fa-solid fa-check text-purple-600 text-2xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-6 card-shadow card-hover fade-in">
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-gray-600 text-sm font-medium">
@@ -72,31 +87,14 @@
                         Materias Asignadas
                     {% endif %}
                 </p>
-                <p class="text-3xl font-bold text-blue-600">
-                    {% if user_type == 'student' %}
-                        3
-                    {% else %}
-                        2
-                    {% endif %}
-                </p>
+                <p class="text-4xl font-bold text-blue-600">{{ courses_count }}</p>
             </div>
-            <div class="bg-blue-100 p-3 rounded-full">
-                <i class="fas fa-book text-blue-600 text-xl"></i>
+            <div class="bg-blue-100 p-7 w-10 h-10 flex items-center justify-center rounded-full">
+                <i class="fa-solid fa-inbox text-blue-600 text-2xl"></i>
             </div>
         </div>
     </div>
     
-    <div class="bg-white rounded-xl p-6 card-shadow">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-gray-600 text-sm font-medium">Evaluaciones</p>
-                <p class="text-3xl font-bold text-purple-600">{{ evaluations|length }}</p>
-            </div>
-            <div class="bg-purple-100 p-3 rounded-full">
-                <i class="fas fa-clipboard-list text-purple-600 text-xl"></i>
-            </div>
-        </div>
-    </div>
 </div>
 {% else %}
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -142,12 +140,8 @@
 <div class="bg-white rounded-xl card-shadow fade-in">
     <div class="p-6 border-b border-gray-200">
         <div class="flex items-center justify-between">
-            <h3 class="text-xl font-semibold text-gray-800">
-                {% if user_type == 'student' %}
-                    <i class="fas fa-clipboard-list mr-2 text-purple-600"></i>Mis Evaluaciones
-                {% else %}
-                    <i class="fas fa-edit mr-2 text-purple-600"></i>Gestionar Evaluaciones
-                {% endif %}
+            <h3 class="text-2xl font-semibold text-gray-800">
+                <i class="fa-solid fa-calendar-days text-purple-600"></i> Próximas Evaluaciones
             </h3>
             {% if user_type == 'teacher' %}
                 <div class="mt-4">
@@ -161,94 +155,40 @@
     </div>
     
     <div class="p-6">
-        {% if user_type == 'student' %}
-            {% if evaluations %}
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead>
-                            <tr class="border-b border-gray-200">
-                                <th class="text-left py-3 px-4 font-medium text-gray-700">Fecha</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-700">Materia</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-700">Tipo</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-700">Tema</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-700">Puntuación</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for evaluation in evaluations %}
-                            <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                <td class="py-3 px-4">{{ evaluation.date|date:"d/m/Y" }}</td>
-                                <td class="py-3 px-4">
-                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                                        {{ evaluation.course.name_course|default:"Sin materia" }}
-                                    </span>
-                                </td>
-                                <td class="py-3 px-4">{{ evaluation.type }}</td>
-                                <td class="py-3 px-4">{{ evaluation.subject }}</td>
-                                <td class="py-3 px-4">
-                                    <span class="font-semibold {% if evaluation.score >= 70 %}text-green-600{% elif evaluation.score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
-                                        {{ evaluation.score }}
-                                    </span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <div class="text-center py-12">
-                    <i class="fas fa-clipboard-list text-6xl text-gray-300 mb-4"></i>
-                    <p class="text-gray-500 text-lg">
-                        {% if user_type == 'student' %}
-                            No tienes evaluaciones registradas aún
-                        {% else %}
-                            No hay evaluaciones en tus cursos asignados
-                        {% endif %}
-                    </p>
-                </div>
-            {% endif %}
+        {% if upcoming_evaluations %}
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">FECHA</th>
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">MATERIA</th>
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">TIPO</th>
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">TEMA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for evaluation in upcoming_evaluations %}
+                        <tr class="border-b border-gray-100 hover:bg-gray-50">
+                            <td class="py-3 px-4">{{ evaluation.date|date:"d/m/Y H:i" }}</td>
+                            <td class="py-3 px-4">
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
+                                    {{ evaluation.course.name_course | upper }}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4">{{ evaluation.type }}</td>
+                            <td class="py-3 px-4">{{ evaluation.subject }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         {% else %}
-            {% if evaluations %}
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead>
-                            <tr class="border-b border-gray-200">
-                                <th class="text-left py-3 px-4 font-medium text-gray-700">Fecha</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-700">Materia</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-700">Tipo</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-700">Tema</th>
-                                <th class="text-left py-3 px-4 font-medium text-gray-700">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for evaluation in evaluations %}
-                            <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                <td class="py-3 px-4">{{ evaluation.date|date:"d/m/Y H:i" }}</td>
-                                <td class="py-3 px-4">
-                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                                        {{ evaluation.course.name_course }}
-                                    </span>
-                                </td>
-                                <td class="py-3 px-4">{{ evaluation.type }}</td>
-                                <td class="py-3 px-4">{{ evaluation.subject }}</td>
-                                <td class="py-3 px-4">
-                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
-                                        Disponible
-                                    </span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <div class="text-center py-12">
-                    <i class="fas fa-clipboard-list text-6xl text-gray-300 mb-4"></i>
-                    <p class="text-gray-500 text-lg">No hay evaluaciones en tus cursos asignados</p>
-                    <p class="text-gray-400 text-sm mt-2">Las evaluaciones de tus materias aparecerán aquí</p>
-                </div>
-            {% endif %}
+            <div class="text-center py-12">
+                <i class="fas fa-calendar-alt text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500 text-lg">No hay próximas evaluaciones programadas</p>
+            </div>
         {% endif %}
+
     </div>
 </div>
 {% endblock %}
