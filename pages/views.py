@@ -244,21 +244,7 @@ def profile(request):
         'user_data': user_data
     })
 
-def settings(request):
-    user_type = request.session.get('user_type')
-    user_id = request.session.get('user_id')
-    
-    if not user_type or not user_id:
-        return redirect('home')
-    
-    if user_type == 'student':
-        user_data = Student.objects.get(ci=user_id)
-    else:
-        user_data = Teacher.objects.get(ci=user_id)
-    
-    return render(request, 'settings.html', {
-        'user_type': user_type,
-        'user_data': user_data})
+
     
 def my_subjects(request):
     user_type = request.session.get('user_type')
@@ -351,6 +337,112 @@ def subject_detail(request, subject_name):
         'punctuations': punctuations,
         'average': average
     })
+
+def profile(request):
+    user_type = request.session.get('user_type')
+    user_id = request.session.get('user_id')
+    
+    if user_type == 'student':
+        user_data = Student.objects.get(ci=user_id)
+    else:
+        user_data = Teacher.objects.get(ci=user_id)
+    
+    return render(request, 'profile.html', {
+        'user_type': user_type,
+        'user_data': user_data
+    })
+
+def edit_profile(request):
+    user_type = request.session.get('user_type')
+    user_id = request.session.get('user_id')
+    
+    if request.method == 'POST':
+        username = request.POST['username']
+        email = request.POST['email']
+        password = request.POST.get('password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+        
+        # Validar contraseña si se proporciona
+        if password:
+            if password != confirm_password:
+                messages.error(request, 'Las contraseñas no coinciden')
+                return redirect('edit_profile')
+            if len(password) < 6:
+                messages.error(request, 'La contraseña debe tener al menos 6 caracteres')
+                return redirect('edit_profile')
+        
+        try:
+            if user_type == 'student':
+                student = Student.objects.get(ci=user_id)
+                student.username = username
+                student.email = email
+                if password:
+                    student.password = password
+                if 'profile_photo' in request.FILES:
+                    student.profile_photo = request.FILES['profile_photo']
+                student.save()
+            else:
+                teacher = Teacher.objects.get(ci=user_id)
+                teacher.username = username
+                teacher.email = email
+                if password:
+                    teacher.password = password
+                if 'profile_photo' in request.FILES:
+                    teacher.profile_photo = request.FILES['profile_photo']
+                teacher.save()
+            
+            messages.success(request, 'Perfil actualizado correctamente')
+            return redirect('profile')
+        except:
+            messages.error(request, 'Error al actualizar el perfil')
+    
+    if user_type == 'student':
+        user_data = Student.objects.get(ci=user_id)
+    else:
+        user_data = Teacher.objects.get(ci=user_id)
+    
+    return render(request, 'edit_profile.html', {
+        'user_type': user_type,
+        'user_data': user_data
+    })
+
+def reset_password(request):
+    if request.method == 'POST':
+        username = request.POST['username']
+        ci = request.POST['ci']
+        new_password = request.POST['new_password']
+        confirm_password = request.POST['confirm_password']
+        
+        # Validar que las contraseñas coincidan
+        if new_password != confirm_password:
+            messages.error(request, 'Las contraseñas no coinciden')
+            return render(request, 'reset_password.html')
+        
+        # Validar longitud mínima
+        if len(new_password) < 6:
+            messages.error(request, 'La contraseña debe tener al menos 6 caracteres')
+            return render(request, 'reset_password.html')
+        
+        # Buscar usuario por username y cédula
+        try:
+            # Verificar si es estudiante
+            student = Student.objects.get(username=username, ci=ci)
+            student.password = new_password
+            student.save()
+            messages.add_message(request, messages.SUCCESS, 'Contraseña restablecida exitosamente')
+            return render(request, 'reset_password.html')
+        except Student.DoesNotExist:
+            try:
+                # Verificar si es profesor
+                teacher = Teacher.objects.get(username=username, ci=ci)
+                teacher.password = new_password
+                teacher.save()
+                messages.add_message(request, messages.SUCCESS, 'Contraseña restablecida exitosamente')
+                return render(request, 'reset_password.html')
+            except Teacher.DoesNotExist:
+                messages.error(request, 'Usuario no encontrado. Verifica tu nombre de usuario y cédula')
+    
+    return render(request, 'reset_password.html')
 
 def logout_view(request):
     request.session.flush()

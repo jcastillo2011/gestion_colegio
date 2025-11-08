@@ -9,6 +9,7 @@ class Teacher(models.Model):
     ci = models.CharField(primary_key=True, max_length=20, unique=True)
     email = models.EmailField(unique=True, max_length=80)
     password = models.CharField(max_length=20)
+    profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
 
     class Meta:
         verbose_name = "Teacher"
@@ -27,6 +28,7 @@ class Student(models.Model):
     password = models.CharField(max_length=20)
     email = models.EmailField(unique=True, max_length=80)
     grade = models.IntegerField(default=1)
+    profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
     
     class Meta:
         verbose_name = "Student"

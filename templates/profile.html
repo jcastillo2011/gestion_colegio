@@ -21,9 +21,9 @@
                 <div>
                     <div class="flex items-center gap-5">
                         <h2 class="text-2xl font-bold text-gray-800">
-                            {{ user_data.username}}
+                            {{ user_data.username }}
                         </h2>
-                        <a href="#"><i class="fa-solid fa-pen-to-square p-2 text-purple-600"></i></a>
+                        <a href="{% url 'edit_profile' %}"><i class="fa-solid fa-pen-to-square p-2 text-purple-600"></i></a>
                     </div>
                     <p class="text-sm text-gray-600 capitalize">{{ user_type }}</p>
                 </div>
@@ -33,7 +33,7 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Nombre Completo</label>
                     <div class="bg-gray-50 p-3 rounded-lg">
-                        {{ user_data.name | title }} {{ user_data.last_name | title }}
+                        {{ user_data.name }} {{ user_data.last_name }}
                     </div>
                 </div>
                 
