@@ -27,14 +27,12 @@
 <section id="tecnologias">
     <h2>🛠️ Tecnologías Utilizadas</h2>
     <p>El proyecto Think It fue construido utilizando las siguientes herramientas y <em>frameworks</em>:</p>
-
     <h3>Backend</h3>
     <ul>
         <li><strong>Python:</strong> Lenguaje de programación principal.</li>
         <li><strong>Django:</strong> Framework web principal.</li>
         <li><strong>Base de Datos:</strong> **SQLite** (por defecto).</li>
     </ul>
-
     <h3>Frontend</h3>
     <ul>
         <li><strong>HTML5</strong></li>
@@ -42,7 +40,6 @@
         <li><strong>JavaScript</strong></li>
         <li><strong>Tailwind css:</strong> Framework web para estilos</li>
     </ul>
-
     <h3>Herramientas de Desarrollo</h3>
     <ul>
         <li><strong>Git / GitHub:</strong> Control de versiones.</li>
@@ -57,44 +54,40 @@
 <section id="instalacion">
     <h2>💻 Instalación y Ejecución Local</h2>
     <p>Sigue estos pasos para poner en marcha el proyecto en tu máquina local.</p>
-
     <h3>1. Clona el Repositorio</h3>
     <div>
         <pre><code>git clone https://www.youtube.com/watch?v=44ziZ12rJwU
 cd think-it</code></pre>
     </div>
-
     <h3>2. Configura el Entorno Virtual</h3>
     <p>Es fundamental trabajar dentro de un entorno virtual para aislar las dependencias del proyecto.</p>
     <div>
+    
         <pre><code># Para Windows
-python -m venv venv
-venv\Scripts\activate
 
-# Para macOS/Linux
-python3 -m venv venv
-source venv/bin/activate</code></pre>
-    </div>
+        python -m venv venv
+        venv\Scripts\activate
 
+        # Para macOS/Linux
+        python3 -m venv venv
+        source venv/bin/activate</code></pre>
+  </div>
     <h3>3. Instala las Dependencias</h3>
     <p>Instala todas las librerías necesarias desde el archivo <code>requirements.txt</code>.</p>
     <div>
         <pre><code>pip install -r requirements.txt</code></pre>
     </div>
-
     <h3>4. Configuración de la Base de Datos y Migraciones</h3>
     <p>Aplica las migraciones iniciales para crear la estructura de la base de datos.</p>
     <div>
         <pre><code>python manage.py migrate</code></pre>
     </div>
-
     <h3>5. Crear un Superusuario (Administrador)</h3>
     <p>Necesitarás un usuario administrador para acceder al <em>Django Admin</em> y gestionar el sistema inicialmente.</p>
     <div>
         <pre><code>python manage.py createsuperuser</code></pre>
     </div>
     <p><em>(Sigue las indicaciones para establecer un nombre de usuario y contraseña)</em></p>
-
     <h3>6. Ejecuta el Servidor de Desarrollo</h3>
     <div>
         <pre><code>python manage.py runserver</code></pre>
