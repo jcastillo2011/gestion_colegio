@@ -53,7 +53,7 @@ class Course(models.Model):
 
 class Evaluation(models.Model):
     date = models.DateTimeField()
-    subject = models. CharField(max_length=40)
+    subject = models.CharField(max_length=40)
     type = models.CharField(max_length=20)
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
@@ -84,7 +84,7 @@ class Admin(models.Model):
         verbose_name_plural = "Admins"
 
     def __str__(self):
-        return self.name_admin
+        return self.name + " " + self.last_name
 
 
 

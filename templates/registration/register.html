@@ -28,7 +28,7 @@
             {% endif %}
 
             <!-- Form -->
-            <form method="post" class="space-y-4">
+            <form method="post" action="{% url 'register' %}" class="space-y-4">
                 {% csrf_token %}
                 
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">

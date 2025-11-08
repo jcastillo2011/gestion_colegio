@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import models
-from model_students.models import Student, Teacher, Evaluation, Course, Punctuation
+from model_students.models import Student, Teacher, Evaluation, Course, Punctuation, Admin
 
 def home(request):
     if request.method == 'POST':
@@ -456,6 +456,44 @@ def student_reports(request):
         'students': students
     })
 
+def reset_password(request):
+    if request.method == 'POST':
+        username = request.POST['username']
+        ci = request.POST['ci']
+        new_password = request.POST['new_password']
+        confirm_password = request.POST['confirm_password']
+        
+        # Validar que las contraseñas coincidan
+        if new_password != confirm_password:
+            messages.error(request, 'Las contraseñas no coinciden')
+            return render(request, 'reset_password.html')
+        
+        # Validar longitud mínima
+        if len(new_password) < 6:
+            messages.error(request, 'La contraseña debe tener al menos 6 caracteres')
+            return render(request, 'reset_password.html')
+        
+        # Buscar usuario por username y cédula
+        try:
+            # Verificar si es estudiante
+            student = Student.objects.get(username=username, ci=ci)
+            student.password = new_password
+            student.save()
+            messages.add_message(request, messages.SUCCESS, 'Contraseña restablecida exitosamente')
+            return render(request, 'reset_password.html')
+        except Student.DoesNotExist:
+            try:
+                # Verificar si es profesor
+                teacher = Teacher.objects.get(username=username, ci=ci)
+                teacher.password = new_password
+                teacher.save()
+                messages.add_message(request, messages.SUCCESS, 'Contraseña restablecida exitosamente')
+                return render(request, 'reset_password.html')
+            except Teacher.DoesNotExist:
+                messages.error(request, 'Usuario no encontrado. Verifica tu nombre de usuario y cédula')
+    
+    return render(request, 'reset_password.html')
+
 def generate_student_report(request, student_ci):
     user_type = request.session.get('user_type')
     user_id = request.session.get('user_id')
@@ -599,6 +637,37 @@ def teacher_subjects(request):
         'user_data': teacher,
         'subjects_data': subjects_data,
         'total_courses': len(subjects_data)
+    })
+
+def edit_profile(request):
+    user_type = request.session.get('user_type')
+    user_id = request.session.get('user_id')
+    
+    if not user_type or not user_id:
+        return redirect('home')
+    
+    if user_type == 'student':
+        user_data = Student.objects.get(ci=user_id)
+    else:
+        user_data = Teacher.objects.get(ci=user_id)
+    
+    if request.method == 'POST':
+        try:
+            user_data.name = request.POST.get('name', user_data.name)
+            user_data.last_name = request.POST.get('last_name', user_data.last_name)
+            user_data.email = request.POST.get('email', user_data.email)
+            
+            if 'profile_photo' in request.FILES:
+                user_data.profile_photo = request.FILES['profile_photo']
+            
+            user_data.save()
+            messages.success(request, 'Perfil actualizado exitosamente')
+        except Exception as e:
+            messages.error(request, f'Error al actualizar el perfil: {str(e)}')
+    
+    return render(request, 'edit_profile.html', {
+        'user_type': user_type,
+        'user_data': user_data
     })
 
 def logout_view(request):
