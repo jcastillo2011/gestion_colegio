@@ -56,21 +56,23 @@
     <p>Sigue estos pasos para poner en marcha el proyecto en tu máquina local.</p>
     <h3>1. Clona el Repositorio</h3>
     <div>
-        <pre><code>git clone https://www.youtube.com/watch?v=44ziZ12rJwU
-cd think-it</code></pre>
-    </div>
+        
+        git clone https://www.youtube.com/watch?v=44ziZ12rJwU
+        cd think-it
+
+</div>
     <h3>2. Configura el Entorno Virtual</h3>
     <p>Es fundamental trabajar dentro de un entorno virtual para aislar las dependencias del proyecto.</p>
     <div>
     
-        <pre><code># Para Windows
+        # Para Windows
 
         python -m venv venv
         venv\Scripts\activate
 
         # Para macOS/Linux
         python3 -m venv venv
-        source venv/bin/activate</code></pre>
+        source venv/bin/activate
   </div>
     <h3>3. Instala las Dependencias</h3>
     <p>Instala todas las librerías necesarias desde el archivo <code>requirements.txt</code>.</p>
