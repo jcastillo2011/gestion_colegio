@@ -2,8 +2,12 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import models
 from model_students.models import Student, Teacher, Evaluation, Course, Punctuation, Admin
+from utils.logger import log_user_activity
 
 def home(request):
+    if request.method == 'GET':
+        log_user_activity(request, 'VIEW', 'Accedió a página de inicio')
+    
     if request.method == 'POST':
         username = request.POST['username']
         password = request.POST['password']
@@ -42,6 +46,9 @@ def home(request):
     return render(request, 'registration/login.html')
 
 def register(request):
+    if request.method == 'GET':
+        log_user_activity(request, 'VIEW', 'Accedió a registro de usuario')
+    
     if request.method == 'POST':
         username = request.POST['username']
         email = request.POST['email']
@@ -143,19 +150,23 @@ def dashboard(request):
     return render(request, 'dashboard.html', context)
 
 def update_evaluations(request):
-    # Verificar si el usuario está logueado y es profesor
     user_type = request.session.get('user_type')
     if not user_type or user_type != 'teacher':
         messages.error(request, 'No tienes permisos para realizar esta acción')
         return redirect('home')
     
     if request.method == 'POST':
+        updated_count = 0
         for key, value in request.POST.items():
             if key.startswith('score_'):
                 eval_id = key.split('_')[1]
                 evaluation = Evaluation.objects.get(id=eval_id)
                 evaluation.score = value
                 evaluation.save()
+                updated_count += 1
+        
+        if updated_count > 0:
+            log_user_activity(request, 'UPDATE', f'Actualizó {updated_count} puntuaciones')
         
         messages.success(request, 'Puntuaciones actualizadas correctamente')
     
@@ -167,6 +178,7 @@ def classroom(request):
     
     if user_type == 'student':
         user_data = Student.objects.get(ci=user_id)
+        log_user_activity(request, 'VIEW', f'Visualizó ranking de estudiantes del grado {user_data.grade}')
         from django.db.models import Avg
         students = Student.objects.filter(grade=user_data.grade).annotate(
             promedio=Avg('punctuation__score')
@@ -322,6 +334,8 @@ def my_subjects(request):
     
     user_data = Student.objects.get(ci=user_id)
     
+    log_user_activity(request, 'VIEW', f'Visualizó lista de materias del grado {user_data.grade}')
+    
     # Obtener todas las materias del grado del estudiante
     all_courses = Course.objects.filter(grade=user_data.grade)
     
@@ -390,6 +404,8 @@ def subject_detail(request, subject_name):
         evaluation__course=course
     ).select_related('evaluation').order_by('evaluation__date')
     
+    log_user_activity(request, 'VIEW', f'Visualizó calificaciones de materia: {subject_name}')
+    
     # Calcular promedio
     scores = [float(p.score) for p in punctuations]
     average = sum(scores) / len(scores) if scores else 0
@@ -432,6 +448,7 @@ def grade_evaluation(request, eval_id):
                     punctuation.score = score
                     punctuation.save()
         
+        log_user_activity(request, 'UPDATE', f'Registró notas para evaluación: {evaluation.subject}')
         messages.success(request, 'Notas registradas correctamente')
         return redirect('manage_evaluations')
     
@@ -476,6 +493,9 @@ def student_reports(request):
     })
 
 def reset_password(request):
+    if request.method == 'GET':
+        log_user_activity(request, 'VIEW', 'Accedió a restablecer contraseña')
+    
     if request.method == 'POST':
         username = request.POST['username']
         ci = request.POST['ci']

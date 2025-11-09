@@ -27,4 +27,5 @@ urlpatterns = [
     path('manage-grades/', admin_views.manage_grades, name='manage_grades'),
     path('manage-courses/', admin_views.manage_courses, name='manage_courses'),
     path('manage-users/', admin_views.manage_users, name='manage_users'),
+    path('system-logs/', admin_views.system_logs, name='system_logs'),
 ]
