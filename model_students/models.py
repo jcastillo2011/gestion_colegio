@@ -104,5 +104,24 @@ class Admin(models.Model):
     def __str__(self):
         return self.name + " " + self.last_name
 
+#### Tabla de Logs del Sistema
+
+class SystemLog(models.Model):
+    user_type = models.CharField(max_length=20)  # admin, teacher, student, Anonymous
+    user_id = models.CharField(max_length=20)    # CI del usuario
+    user_name = models.CharField(max_length=100) # Nombre completo del usuario
+    action = models.CharField(max_length=20)     # LOGIN, LOGOUT, CREATE, UPDATE, DELETE, VIEW
+    description = models.TextField()             # Descripción de la acción
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "System Log"
+        verbose_name_plural = "System Logs"
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"{self.user_name} - {self.action} - {self.timestamp}"
+
 
 
