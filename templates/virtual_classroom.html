@@ -1,0 +1,302 @@
+{% extends 'layouts/_base.html' %}
+
+{% block title %}{{ course.name_course }} - Aula Virtual{% endblock %}
+
+{% block page_title %}{{ course.name_course }} - Grado {{ course.grade }}{% endblock %}
+
+{% block dashboard_content %}
+        <!-- Mensajes -->
+        {% if messages %}
+            {% for message in messages %}
+            <div class="mb-4 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-red-100 text-red-700 border border-red-200{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Header del aula -->
+        <div class="bg-gradient-to-r from-blue-600 to-purple-700 rounded-xl text-white p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold mb-2">{{ course.name_course }}</h1>
+                    <p class="opacity-90">
+                        <i class="fas fa-graduation-cap mr-2"></i>Grado {{ course.grade }}
+                        {% if course.teacher %}
+                            <span class="mx-2">•</span>
+                            <i class="fas fa-user-tie mr-2"></i>{{ course.teacher.name }} {{ course.teacher.last_name }}
+                        {% endif %}
+                    </p>
+                    {% if course.description %}
+                        <p class="mt-2 opacity-80">{{ course.description }}</p>
+                    {% endif %}
+                </div>
+                <a href="{% url 'classroom' %}" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition-all">
+                    <i class="fas fa-arrow-left mr-2"></i>Volver
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Contenido principal -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Anuncios -->
+                <div class="bg-white rounded-xl shadow">
+                    <div class="p-6 border-b flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">
+                            <i class="fas fa-bullhorn text-blue-600 mr-2"></i>Anuncios
+                        </h3>
+                        {% if user_type == 'teacher' %}
+                        <button onclick="toggleModal('announcementModal')" class="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700">
+                            <i class="fas fa-plus mr-1"></i>Nuevo
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="p-6">
+                        {% for announcement in announcements %}
+                        <div class="border-l-4 border-blue-500 bg-blue-50 p-4 mb-4 rounded-r-lg">
+                            <h4 class="font-semibold text-gray-900">{{ announcement.title }}</h4>
+                            <p class="text-gray-700 mt-2">{{ announcement.content }}</p>
+                            <p class="text-xs text-gray-500 mt-2">
+                                <i class="fas fa-clock mr-1"></i>{{ announcement.created_at|date:"d/m/Y H:i" }}
+                            </p>
+                        </div>
+                        {% empty %}
+                        <p class="text-gray-500 text-center py-8">No hay anuncios publicados</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Materiales -->
+                <div class="bg-white rounded-xl shadow">
+                    <div class="p-6 border-b flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">
+                            <i class="fas fa-folder text-green-600 mr-2"></i>Materiales de Estudio
+                        </h3>
+                        {% if user_type == 'teacher' %}
+                        <button onclick="toggleModal('materialModal')" class="bg-green-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-green-700">
+                            <i class="fas fa-plus mr-1"></i>Agregar
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {% for material in materials %}
+                            <div class="border rounded-lg p-4 hover:bg-gray-50">
+                                <div class="flex items-center mb-2">
+                                    <i class="fas {% if material.material_type == 'document' %}fa-file-alt text-red-500{% elif material.material_type == 'video' %}fa-play-circle text-blue-500{% elif material.material_type == 'link' %}fa-link text-green-500{% else %}fa-image text-purple-500{% endif %} mr-2"></i>
+                                    <h4 class="font-medium text-gray-900">{{ material.title }}</h4>
+                                </div>
+                                {% if material.description %}
+                                <p class="text-sm text-gray-600 mb-2">{{ material.description|truncatewords:10 }}</p>
+                                {% endif %}
+                                {% if material.file %}
+                                <a href="{{ material.file.url }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm">
+                                    <i class="fas fa-download mr-1"></i>Descargar
+                                </a>
+                                {% elif material.url %}
+                                <a href="{{ material.url }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-sm">
+                                    <i class="fas fa-external-link-alt mr-1"></i>Abrir enlace
+                                </a>
+                                {% endif %}
+                            </div>
+                            {% empty %}
+                            <div class="col-span-2 text-center py-8 text-gray-500">
+                                No hay materiales disponibles
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tareas -->
+                <div class="bg-white rounded-xl shadow">
+                    <div class="p-6 border-b flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">
+                            <i class="fas fa-tasks text-orange-600 mr-2"></i>Tareas y Actividades
+                        </h3>
+                        {% if user_type == 'teacher' %}
+                        <button onclick="toggleModal('assignmentModal')" class="bg-orange-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-orange-700">
+                            <i class="fas fa-plus mr-1"></i>Nueva Tarea
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="p-6">
+                        {% for assignment in assignments %}
+                        <div class="border rounded-lg p-4 mb-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="font-medium text-gray-900">{{ assignment.title }}</h4>
+                                <span class="text-sm {% if assignment.due_date|date:'Y-m-d' < today|date:'Y-m-d' %}text-red-600{% else %}text-green-600{% endif %}">
+                                    <i class="fas fa-calendar mr-1"></i>{{ assignment.due_date|date:"d/m/Y" }}
+                                </span>
+                            </div>
+                            <p class="text-gray-600 text-sm">{{ assignment.description|truncatewords:20 }}</p>
+                        </div>
+                        {% empty %}
+                        <p class="text-gray-500 text-center py-8">No hay tareas asignadas</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Evaluaciones recientes -->
+                <div class="bg-white rounded-xl shadow">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold text-gray-900">
+                            <i class="fas fa-chart-line text-purple-600 mr-2"></i>Evaluaciones
+                        </h3>
+                    </div>
+                    <div class="p-6">
+                        {% for evaluation in recent_evaluations %}
+                        <div class="flex items-center justify-between py-2 border-b last:border-b-0">
+                            <div>
+                                <p class="font-medium text-sm">{{ evaluation.subject }}</p>
+                                <p class="text-xs text-gray-500">{{ evaluation.type }}</p>
+                            </div>
+                            <span class="text-xs text-gray-500">{{ evaluation.date|date:"d/m" }}</span>
+                        </div>
+                        {% empty %}
+                        <p class="text-gray-500 text-sm">No hay evaluaciones</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Estudiantes -->
+                <div class="bg-white rounded-xl shadow">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold text-gray-900">
+                            <i class="fas fa-users text-indigo-600 mr-2"></i>Estudiantes ({{ students.count }})
+                        </h3>
+                    </div>
+                    <div class="p-6 max-h-64 overflow-y-auto">
+                        {% for student in students %}
+                        <div class="flex items-center py-2">
+                            <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                                <span class="text-indigo-600 text-xs font-medium">{{ student.name.0 }}{{ student.last_name.0 }}</span>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium">{{ student.name }} {{ student.last_name }}</p>
+                                <p class="text-xs text-gray-500">{{ student.ci }}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if user_type == 'teacher' %}
+        <!-- Modales para profesores -->
+        
+        <!-- Modal Anuncio -->
+        <div id="announcementModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-xl max-w-md w-full">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold">Nuevo Anuncio</h3>
+                    </div>
+                    <form method="post" class="p-6">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_announcement">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Título</label>
+                            <input type="text" name="title" required class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Contenido</label>
+                            <textarea name="content" required rows="4" class="w-full px-3 py-2 border rounded-lg"></textarea>
+                        </div>
+                        <div class="flex space-x-3">
+                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Publicar</button>
+                            <button type="button" onclick="toggleModal('announcementModal')" class="bg-gray-300 px-4 py-2 rounded-lg">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Material -->
+        <div id="materialModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-xl max-w-md w-full">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold">Agregar Material</h3>
+                    </div>
+                    <form method="post" enctype="multipart/form-data" class="p-6">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_material">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Título</label>
+                            <input type="text" name="title" required class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Tipo</label>
+                            <select name="material_type" required class="w-full px-3 py-2 border rounded-lg">
+                                <option value="document">Documento</option>
+                                <option value="video">Video</option>
+                                <option value="link">Enlace</option>
+                                <option value="image">Imagen</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Archivo</label>
+                            <input type="file" name="file" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">URL (opcional)</label>
+                            <input type="url" name="url" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Descripción</label>
+                            <textarea name="description" rows="3" class="w-full px-3 py-2 border rounded-lg"></textarea>
+                        </div>
+                        <div class="flex space-x-3">
+                            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Agregar</button>
+                            <button type="button" onclick="toggleModal('materialModal')" class="bg-gray-300 px-4 py-2 rounded-lg">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Tarea -->
+        <div id="assignmentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-xl max-w-md w-full">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold">Nueva Tarea</h3>
+                    </div>
+                    <form method="post" class="p-6">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_assignment">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Título</label>
+                            <input type="text" name="title" required class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Descripción</label>
+                            <textarea name="description" required rows="4" class="w-full px-3 py-2 border rounded-lg"></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Fecha de entrega</label>
+                            <input type="datetime-local" name="due_date" required class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div class="flex space-x-3">
+                            <button type="submit" class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700">Crear</button>
+                            <button type="button" onclick="toggleModal('assignmentModal')" class="bg-gray-300 px-4 py-2 rounded-lg">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.toggle('hidden');
+        }
+        </script>
+        {% endif %}
+
+{% endblock %}

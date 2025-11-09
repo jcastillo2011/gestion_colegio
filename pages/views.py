@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.db import models
-from model_students.models import Student, Teacher, Evaluation, Course, Punctuation, Admin
+from model_students.models import Student, Teacher, Evaluation, Course, Punctuation, Admin, Material, Announcement, Assignment
 from utils.logger import log_user_activity
 
 def home(request):
@@ -192,66 +192,22 @@ def classroom(request):
     
     if user_type == 'student':
         user_data = Student.objects.get(ci=user_id)
-        log_user_activity(request, 'VIEW', f'Visualizó ranking de estudiantes del grado {user_data.grade}')
-        from django.db.models import Avg
-        students = Student.objects.filter(grade=user_data.grade).annotate(
-            promedio=Avg('punctuation__score')
-        ).order_by('-promedio')
+        courses = Course.objects.filter(grade=user_data.grade)
+        log_user_activity(request, 'VIEW', 'Accedió a aulas virtuales')
+        
         return render(request, 'classroom.html', {
             'user_type': user_type,
             'user_data': user_data,
-            'students': students
+            'courses': courses
         })
     else:
         teacher = Teacher.objects.get(ci=user_id)
-        
-        # Obtener materias del profesor
-        teacher_courses = Course.objects.filter(teacher=teacher)
-        
-        # Estadísticas generales
-        from django.db.models import Avg, Count
-        total_students = Student.objects.filter(grade__in=teacher_courses.values('grade')).distinct().count()
-        total_evaluations = Evaluation.objects.filter(course__teacher=teacher).count()
-        
-        # Estudiantes por materia con promedios
-        courses_data = []
-        for course in teacher_courses:
-            students = Student.objects.filter(grade=course.grade).annotate(
-                promedio=Avg('punctuation__score', filter=models.Q(punctuation__evaluation__course=course))
-            ).order_by('name', 'last_name')
-            
-            # Evaluaciones recientes de la materia
-            recent_evaluations = Evaluation.objects.filter(course=course).order_by('-date')[:3]
-            
-            courses_data.append({
-                'course': course,
-                'students': students,
-                'students_count': students.count(),
-                'recent_evaluations': recent_evaluations
-            })
-        
-        # Evaluaciones pendientes de calificar
-        from django.utils import timezone
-        pending_evaluations = []
-        for course in teacher_courses:
-            evaluations = Evaluation.objects.filter(course=course)
-            for evaluation in evaluations:
-                students_count = Student.objects.filter(grade=course.grade).count()
-                graded_count = Punctuation.objects.filter(evaluation=evaluation).count()
-                if graded_count < students_count:
-                    pending_evaluations.append({
-                        'evaluation': evaluation,
-                        'pending_count': students_count - graded_count,
-                        'total_count': students_count
-                    })
+        courses = Course.objects.filter(teacher=teacher)
         
         return render(request, 'classroom.html', {
             'user_type': user_type,
             'user_data': teacher,
-            'courses_data': courses_data,
-            'total_students': total_students,
-            'total_evaluations': total_evaluations,
-            'pending_evaluations': pending_evaluations[:5]  # Solo las 5 más recientes
+            'courses': courses
         })
 
 def manage_evaluations(request):
@@ -809,7 +765,90 @@ def edit_profile(request):
 
 def logout_view(request):
     request.session.flush()
-    return redirect('home') 
+    return redirect('home')
+
+def virtual_classroom(request, course_id):
+    user_type = request.session.get('user_type')
+    user_id = request.session.get('user_id')
+    
+    if not user_type or not user_id:
+        return redirect('home')
+    
+    try:
+        course = Course.objects.get(id=course_id)
+        
+        # Verificar acceso
+        if user_type == 'student':
+            user_data = Student.objects.get(ci=user_id)
+            if user_data.grade != course.grade:
+                messages.error(request, 'No tienes acceso a esta aula virtual')
+                return redirect('classroom')
+        elif user_type == 'teacher':
+            user_data = Teacher.objects.get(ci=user_id)
+            if course.teacher != user_data:
+                messages.error(request, 'No tienes acceso a esta aula virtual')
+                return redirect('classroom')
+        
+        # Manejar POST para profesores
+        if request.method == 'POST' and user_type == 'teacher':
+            action = request.POST.get('action')
+            
+            if action == 'add_material':
+                Material.objects.create(
+                    title=request.POST.get('title'),
+                    description=request.POST.get('description', ''),
+                    material_type=request.POST.get('material_type'),
+                    file=request.FILES.get('file'),
+                    url=request.POST.get('url'),
+                    course=course,
+                    created_by=user_data
+                )
+                messages.success(request, 'Material agregado exitosamente')
+            
+            elif action == 'add_announcement':
+                Announcement.objects.create(
+                    title=request.POST.get('title'),
+                    content=request.POST.get('content'),
+                    course=course,
+                    created_by=user_data
+                )
+                messages.success(request, 'Anuncio publicado exitosamente')
+            
+            elif action == 'add_assignment':
+                Assignment.objects.create(
+                    title=request.POST.get('title'),
+                    description=request.POST.get('description'),
+                    due_date=request.POST.get('due_date'),
+                    course=course,
+                    created_by=user_data
+                )
+                messages.success(request, 'Tarea creada exitosamente')
+        
+        # Obtener contenido del aula
+        materials = Material.objects.filter(course=course)[:10]
+        announcements = Announcement.objects.filter(course=course)[:5]
+        assignments = Assignment.objects.filter(course=course)[:5]
+        recent_evaluations = Evaluation.objects.filter(course=course).order_by('-date')[:5]
+        
+        # Estudiantes del curso
+        students = Student.objects.filter(grade=course.grade).order_by('name', 'last_name')
+        
+        context = {
+            'user_type': user_type,
+            'user_data': user_data,
+            'course': course,
+            'materials': materials,
+            'announcements': announcements,
+            'assignments': assignments,
+            'recent_evaluations': recent_evaluations,
+            'students': students,
+        }
+        
+        return render(request, 'virtual_classroom.html', context)
+        
+    except Course.DoesNotExist:
+        messages.error(request, 'Aula virtual no encontrada')
+        return redirect('classroom') 
 
 # ============ VISTAS DE ADMINISTRADOR ============
 

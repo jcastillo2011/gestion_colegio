@@ -21,6 +21,7 @@ urlpatterns = [
     path('student-report/<str:student_ci>/', views.generate_student_report, name='generate_student_report'),
     path('update-evaluations/', views.update_evaluations, name='update_evaluations'),
     path('logout/', views.logout_view, name='logout'),
+    path('virtual-classroom/<int:course_id>/', views.virtual_classroom, name='virtual_classroom'),
     
     # URLs de Administrador
     path('admin-dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),

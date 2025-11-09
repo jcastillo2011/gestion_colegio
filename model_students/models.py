@@ -123,5 +123,57 @@ class SystemLog(models.Model):
     def __str__(self):
         return f"{self.user_name} - {self.action} - {self.timestamp}"
 
+#### Modelos para Aula Virtual
+
+class Material(models.Model):
+    MATERIAL_TYPES = [
+        ('document', 'Documento'),
+        ('video', 'Video'),
+        ('link', 'Enlace'),
+        ('image', 'Imagen'),
+    ]
+    
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    material_type = models.CharField(max_length=20, choices=MATERIAL_TYPES)
+    file = models.FileField(upload_to='materials/', null=True, blank=True)
+    url = models.URLField(null=True, blank=True)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='materials')
+    created_by = models.ForeignKey(Teacher, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.title
+
+class Announcement(models.Model):
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='announcements')
+    created_by = models.ForeignKey(Teacher, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.title
+
+class Assignment(models.Model):
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    due_date = models.DateTimeField()
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='assignments')
+    created_by = models.ForeignKey(Teacher, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-due_date']
+    
+    def __str__(self):
+        return self.title
+
 
 
