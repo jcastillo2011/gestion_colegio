@@ -7,26 +7,38 @@ def home(request):
     if request.method == 'POST':
         username = request.POST['username']
         password = request.POST['password']
+        user_type = request.POST['user_type']
         
-        # Verificar si es estudiante
-        try:
-            student = Student.objects.get(username=username, password=password)
-            request.session['user_type'] = 'student'
-            request.session['user_id'] = student.ci
-            return redirect('dashboard')
-        except Student.DoesNotExist:
-            pass
+        if user_type == 'student':
+            try:
+                student = Student.objects.get(username=username, password=password)
+                request.session['user_type'] = 'student'
+                request.session['user_id'] = student.ci
+                return redirect('dashboard')
+            except Student.DoesNotExist:
+                messages.error(request, 'Credenciales de estudiante incorrectas')
         
-        # Verificar si es profesor
-        try:
-            teacher = Teacher.objects.get(username=username, password=password)
-            request.session['user_type'] = 'teacher'
-            request.session['user_id'] = teacher.ci
-            return redirect('dashboard')
-        except Teacher.DoesNotExist:
-            pass
+        elif user_type == 'teacher':
+            try:
+                teacher = Teacher.objects.get(username=username, password=password)
+                request.session['user_type'] = 'teacher'
+                request.session['user_id'] = teacher.ci
+                return redirect('dashboard')
+            except Teacher.DoesNotExist:
+                messages.error(request, 'Credenciales de profesor incorrectas')
         
-        messages.error(request, 'Usuario o contraseña incorrectos')
+        elif user_type == 'admin':
+            try:
+                admin = Admin.objects.get(username=username, password=password)
+                request.session['user_type'] = 'admin'
+                request.session['user_id'] = admin.ci
+                return redirect('admin_dashboard')
+            except Admin.DoesNotExist:
+                messages.error(request, 'Credenciales de administrador incorrectas')
+        
+        else:
+            messages.error(request, 'Selecciona un tipo de usuario válido')
+    
     return render(request, 'registration/login.html')
 
 def register(request):
@@ -79,6 +91,10 @@ def dashboard(request):
     if not user_type or not user_id:
         messages.error(request, 'Debes iniciar sesión para acceder al dashboard')
         return redirect('home')
+    
+    # Redirigir administradores a su dashboard específico
+    if user_type == 'admin':
+        return redirect('admin_dashboard')
     
     from django.utils import timezone
     
@@ -440,19 +456,22 @@ def student_reports(request):
     user_type = request.session.get('user_type')
     user_id = request.session.get('user_id')
     
-    if user_type != 'teacher':
+    if user_type == 'admin':
+        admin_data = Admin.objects.get(ci=user_id)
+        students = Student.objects.all().order_by('name', 'last_name')
+        user_data = admin_data
+    elif user_type == 'teacher':
+        teacher = Teacher.objects.get(ci=user_id)
+        teacher_courses = Course.objects.filter(teacher=teacher)
+        students = Student.objects.filter(grade__in=teacher_courses.values('grade')).distinct().order_by('name', 'last_name')
+        user_data = teacher
+    else:
         messages.error(request, 'Acceso denegado')
         return redirect('dashboard')
     
-    teacher = Teacher.objects.get(ci=user_id)
-    
-    # Obtener estudiantes de los grados de las materias del profesor
-    teacher_courses = Course.objects.filter(teacher=teacher)
-    students = Student.objects.filter(grade__in=teacher_courses.values('grade')).distinct().order_by('name', 'last_name')
-    
     return render(request, 'student_reports.html', {
         'user_type': user_type,
-        'user_data': teacher,
+        'user_data': user_data,
         'students': students
     })
 
@@ -490,7 +509,15 @@ def reset_password(request):
                 messages.add_message(request, messages.SUCCESS, 'Contraseña restablecida exitosamente')
                 return render(request, 'reset_password.html')
             except Teacher.DoesNotExist:
-                messages.error(request, 'Usuario no encontrado. Verifica tu nombre de usuario y cédula')
+                try:
+                    # Verificar si es administrador
+                    admin = Admin.objects.get(username=username, ci=ci)
+                    admin.password = new_password
+                    admin.save()
+                    messages.add_message(request, messages.SUCCESS, 'Contraseña restablecida exitosamente')
+                    return render(request, 'reset_password.html')
+                except Admin.DoesNotExist:
+                    messages.error(request, 'Usuario no encontrado. Verifica tu nombre de usuario y cédula')
     
     return render(request, 'reset_password.html')
 
@@ -498,11 +525,15 @@ def generate_student_report(request, student_ci):
     user_type = request.session.get('user_type')
     user_id = request.session.get('user_id')
     
-    if user_type != 'teacher':
+    if user_type not in ['teacher', 'admin']:
         messages.error(request, 'Acceso denegado')
         return redirect('dashboard')
     
-    teacher = Teacher.objects.get(ci=user_id)
+    if user_type == 'admin':
+        user_data = Admin.objects.get(ci=user_id)
+    else:
+        user_data = Teacher.objects.get(ci=user_id)
+    
     student = Student.objects.get(ci=student_ci)
     
     # Obtener materias del grado del estudiante
@@ -536,53 +567,125 @@ def generate_student_report(request, student_ci):
     overall_average = total_score / total_count if total_count > 0 else 0
     
     if request.GET.get('pdf'):
-        from django.http import HttpResponse
-        from reportlab.pdfgen import canvas
-        from reportlab.lib.pagesizes import letter
-        from reportlab.lib.units import inch
-        
-        response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="boletin_{student.name}_{student.last_name}.pdf"'
-        
-        p = canvas.Canvas(response, pagesize=letter)
-        width, height = letter
-        
-        # Header
-        p.setFont("Helvetica-Bold", 16)
-        p.drawString(50, height - 50, "ThinkIt - Sistema Académico")
-        p.setFont("Helvetica-Bold", 14)
-        p.drawString(50, height - 80, "BOLETÍN DE CALIFICACIONES")
-        
-        # Student info
-        p.setFont("Helvetica", 12)
-        p.drawString(50, height - 120, f"Estudiante: {student.name} {student.last_name}")
-        p.drawString(50, height - 140, f"Cédula: {student.ci}")
-        p.drawString(50, height - 160, f"Grado: {student.grade}")
-        p.drawString(50, height - 180, f"Promedio General: {overall_average:.2f}")
-        
-        # Table header
-        y = height - 220
-        p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y, "MATERIA")
-        p.drawString(200, y, "PROMEDIO")
-        p.drawString(300, y, "ESTADO")
-        
-        # Table content
-        p.setFont("Helvetica", 10)
-        y -= 20
-        for data in report_data:
-            p.drawString(50, y, data['course'].name_course)
-            p.drawString(200, y, f"{data['average']:.2f}")
-            p.drawString(300, y, data['status'])
-            y -= 20
-        
-        p.showPage()
-        p.save()
-        return response
+        try:
+            from django.http import HttpResponse
+            from reportlab.pdfgen import canvas
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib.colors import HexColor, black, white
+            from reportlab.lib.units import inch
+            from datetime import datetime
+            
+            response = HttpResponse(content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="boletin_{student.name}_{student.last_name}.pdf"'
+            
+            p = canvas.Canvas(response, pagesize=letter)
+            width, height = letter
+            
+            # Colors
+            primary_color = HexColor('#667eea')
+            secondary_color = HexColor('#764ba2')
+            
+            # Header background
+            p.setFillColor(primary_color)
+            p.rect(0, height - 120, width, 120, fill=1, stroke=0)
+            
+            # Logo placeholder (circle)
+            p.setFillColor(white)
+            p.circle(80, height - 60, 30, fill=1, stroke=0)
+            p.setFillColor(primary_color)
+            p.setFont("Helvetica-Bold", 20)
+            p.drawString(75, height - 65, "T")
+            
+            # Institution info
+            p.setFillColor(white)
+            p.setFont("Helvetica-Bold", 24)
+            p.drawString(130, height - 45, "ThinkIt Academy")
+            p.setFont("Helvetica", 12)
+            p.drawString(130, height - 65, "Sistema de Gestion Academica")
+            p.drawString(130, height - 80, "Excelencia en Educacion")
+            
+            # Document title
+            p.setFillColor(black)
+            p.setFont("Helvetica-Bold", 20)
+            p.drawString(width/2 - 100, height - 150, "BOLETIN DE CALIFICACIONES")
+            
+            # Student info box
+            p.setStrokeColor(primary_color)
+            p.setLineWidth(2)
+            p.rect(50, height - 250, width - 100, 80, fill=0, stroke=1)
+            
+            p.setFont("Helvetica-Bold", 12)
+            p.drawString(70, height - 185, "INFORMACION DEL ESTUDIANTE")
+            
+            p.setFont("Helvetica", 11)
+            p.drawString(70, height - 205, f"Nombre: {student.name} {student.last_name}")
+            p.drawString(70, height - 220, f"Cedula: {student.ci}")
+            p.drawString(300, height - 205, f"Grado: {student.grade}")
+            p.drawString(300, height - 220, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}")
+            p.drawString(300, height - 235, f"Promedio: {overall_average:.2f}")
+            
+            # Table header
+            y = height - 290
+            p.setFillColor(primary_color)
+            p.rect(50, y - 20, width - 100, 25, fill=1, stroke=0)
+            
+            p.setFillColor(white)
+            p.setFont("Helvetica-Bold", 12)
+            p.drawString(70, y - 12, "MATERIA")
+            p.drawString(250, y - 12, "PROMEDIO")
+            p.drawString(350, y - 12, "ESTADO")
+            p.drawString(450, y - 12, "OBSERVACION")
+            
+            # Table content
+            p.setFillColor(black)
+            p.setFont("Helvetica", 10)
+            y -= 35
+            row_count = 0
+            
+            for data in report_data:
+                if data['average'] > 0:
+                    # Alternate row colors
+                    if row_count % 2 == 0:
+                        p.setFillColor(HexColor('#f8f9fa'))
+                        p.rect(50, y - 15, width - 100, 20, fill=1, stroke=0)
+                    
+                    p.setFillColor(black)
+                    p.drawString(70, y - 5, str(data['course'].name_course))
+                    p.drawString(260, y - 5, f"{data['average']:.2f}")
+                    
+                    # Color-coded status
+                    if data['average'] >= 10:
+                        p.setFillColor(HexColor('#28a745'))
+                    else:
+                        p.setFillColor(HexColor('#dc3545'))
+                    p.drawString(360, y - 5, str(data['status']))
+                    
+                    # Observation
+                    p.setFillColor(black)
+                    obs = "Excelente" if data['average'] >= 15 else "Bueno" if data['average'] >= 12 else "Regular" if data['average'] >= 10 else "Deficiente"
+                    p.drawString(460, y - 5, obs)
+                    
+                    y -= 20
+                    row_count += 1
+            
+            # Footer
+            p.setFillColor(primary_color)
+            p.rect(0, 0, width, 50, fill=1, stroke=0)
+            p.setFillColor(white)
+            p.setFont("Helvetica", 8)
+            p.drawString(width/2 - 120, 25, "ThinkIt Academy - Sistema de Gestion Academica")
+            p.drawString(width/2 - 140, 15, "www.thinkit.edu | contacto@thinkit.edu | Tel: (555) 123-4567")
+            
+            p.showPage()
+            p.save()
+            return response
+        except Exception as e:
+            messages.error(request, f'Error al generar PDF: {str(e)}')
+            return redirect('student_reports')
     
     return render(request, 'student_report_detail.html', {
         'user_type': user_type,
-        'user_data': teacher,
+        'user_data': user_data,
         'student': student,
         'report_data': report_data,
         'overall_average': overall_average
@@ -673,3 +776,217 @@ def edit_profile(request):
 def logout_view(request):
     request.session.flush()
     return redirect('home') 
+
+# ============ VISTAS DE ADMINISTRADOR ============
+
+def admin_required(view_func):
+    """Decorador para verificar que el usuario sea administrador"""
+    def wrapper(request, *args, **kwargs):
+        user_type = request.session.get('user_type')
+        if user_type != 'admin':
+            messages.error(request, 'Acceso denegado. Solo administradores.')
+            return redirect('home')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+@admin_required
+def admin_dashboard(request):
+    from model_students.models import Grade
+    admin_id = request.session.get('user_id')
+    admin_data = Admin.objects.get(ci=admin_id)
+    
+    # Estadísticas generales
+    total_students = Student.objects.count()
+    total_teachers = Teacher.objects.count()
+    total_courses = Course.objects.count()
+    total_grades = Grade.objects.count()
+    
+    # Datos recientes
+    recent_students = Student.objects.order_by('-ci')[:5]
+    recent_teachers = Teacher.objects.order_by('-ci')[:5]
+    
+    context = {
+        'user_type': 'admin',
+        'user_data': admin_data,
+        'total_students': total_students,
+        'total_teachers': total_teachers,
+        'total_courses': total_courses,
+        'total_grades': total_grades,
+        'recent_students': recent_students,
+        'recent_teachers': recent_teachers,
+    }
+    
+    return render(request, 'admin/dashboard.html', context)
+
+@admin_required
+def manage_grades(request):
+    from model_students.models import Grade
+    admin_id = request.session.get('user_id')
+    admin_data = Admin.objects.get(ci=admin_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'create':
+            name = request.POST.get('name')
+            level = request.POST.get('level')
+            description = request.POST.get('description', '')
+            
+            try:
+                Grade.objects.create(name=name, level=level, description=description)
+                messages.success(request, f'Grado "{name}" creado exitosamente')
+            except Exception as e:
+                messages.error(request, f'Error al crear grado: {str(e)}')
+        
+        elif action == 'delete':
+            grade_id = request.POST.get('grade_id')
+            try:
+                grade = Grade.objects.get(id=grade_id)
+                grade.delete()
+                messages.success(request, 'Grado eliminado exitosamente')
+            except Exception as e:
+                messages.error(request, f'Error al eliminar grado: {str(e)}')
+    
+    grades = Grade.objects.all().order_by('level')
+    
+    return render(request, 'admin/manage_grades.html', {
+        'user_type': 'admin',
+        'user_data': admin_data,
+        'grades': grades
+    })
+
+@admin_required
+def manage_courses(request):
+    from model_students.models import Grade
+    admin_id = request.session.get('user_id')
+    admin_data = Admin.objects.get(ci=admin_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'create':
+            name_course = request.POST.get('name_course')
+            description = request.POST.get('description', '')
+            grade_id = request.POST.get('grade_id')
+            teacher_id = request.POST.get('teacher_id')
+            
+            try:
+                grade = Grade.objects.get(id=grade_id)
+                teacher = Teacher.objects.get(ci=teacher_id) if teacher_id else None
+                
+                Course.objects.create(
+                    name_course=name_course,
+                    description=description,
+                    grade=grade,
+                    teacher=teacher
+                )
+                messages.success(request, f'Materia "{name_course}" creada exitosamente')
+            except Exception as e:
+                messages.error(request, f'Error al crear materia: {str(e)}')
+        
+        elif action == 'delete':
+            course_id = request.POST.get('course_id')
+            try:
+                course = Course.objects.get(id=course_id)
+                course.delete()
+                messages.success(request, 'Materia eliminada exitosamente')
+            except Exception as e:
+                messages.error(request, f'Error al eliminar materia: {str(e)}')
+        
+        elif action == 'assign_students':
+            course_id = request.POST.get('course_id')
+            student_ids = request.POST.getlist('student_ids')
+            
+            try:
+                course = Course.objects.get(id=course_id)
+                students = Student.objects.filter(ci__in=student_ids)
+                course.students.set(students)
+                messages.success(request, f'Estudiantes asignados a {course.name_course}')
+            except Exception as e:
+                messages.error(request, f'Error al asignar estudiantes: {str(e)}')
+    
+    courses = Course.objects.all().select_related('teacher')
+    grades = Grade.objects.all()
+    teachers = Teacher.objects.all()
+    students = Student.objects.all()
+    
+    return render(request, 'admin/manage_courses.html', {
+        'user_type': 'admin',
+        'user_data': admin_data,
+        'courses': courses,
+        'grades': grades,
+        'teachers': teachers,
+        'students': students
+    })
+
+@admin_required
+def manage_users(request):
+    admin_id = request.session.get('user_id')
+    admin_data = Admin.objects.get(ci=admin_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        user_type = request.POST.get('user_type')
+        
+        if action == 'create':
+            username = request.POST.get('username')
+            name = request.POST.get('name')
+            last_name = request.POST.get('last_name')
+            ci = request.POST.get('ci')
+            email = request.POST.get('email')
+            password = request.POST.get('password')
+            
+            try:
+                if user_type == 'student':
+                    from model_students.models import Grade
+                    grade_id = request.POST.get('grade_id')
+                    grade = Grade.objects.get(id=grade_id) if grade_id else None
+                    
+                    Student.objects.create(
+                        username=username,
+                        name=name,
+                        last_name=last_name,
+                        ci=ci,
+                        email=email,
+                        password=password,
+                        grade=grade
+                    )
+                    messages.success(request, f'Estudiante "{name} {last_name}" creado exitosamente')
+                
+                elif user_type == 'teacher':
+                    Teacher.objects.create(
+                        username=username,
+                        name=name,
+                        last_name=last_name,
+                        ci=ci,
+                        email=email,
+                        password=password
+                    )
+                    messages.success(request, f'Profesor "{name} {last_name}" creado exitosamente')
+                
+            except Exception as e:
+                messages.error(request, f'Error al crear usuario: {str(e)}')
+        
+        elif action == 'delete':
+            user_id = request.POST.get('user_id')
+            try:
+                if user_type == 'student':
+                    Student.objects.get(ci=user_id).delete()
+                elif user_type == 'teacher':
+                    Teacher.objects.get(ci=user_id).delete()
+                messages.success(request, 'Usuario eliminado exitosamente')
+            except Exception as e:
+                messages.error(request, f'Error al eliminar usuario: {str(e)}')
+    
+    from model_students.models import Grade
+    students = Student.objects.all()
+    teachers = Teacher.objects.all()
+    grades = Grade.objects.all()
+    
+    return render(request, 'admin/manage_users.html', {
+        'user_type': 'admin',
+        'user_data': admin_data,
+        'students': students,
+        'teachers': teachers,
+        'grades': grades
+    })

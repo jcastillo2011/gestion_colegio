@@ -30,17 +30,19 @@
             <nav class="mt-8">
                 <ul class="space-y-2 px-4 text-xl">
                     <li>
-                        <a href="{% url 'dashboard' %}" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors {% if request.resolver_match.url_name == 'dashboard' %}bg-white/10{% endif %}">
+                        <a href="{% if user_type == 'admin' %}{% url 'admin_dashboard' %}{% else %}{% url 'dashboard' %}{% endif %}" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'admin_dashboard' %}bg-white/10{% endif %}">
                             <i class="{% if request.resolver_match.url_name == 'dashboard' %}fa-solid{% else %}fa-regular{% endif %} fa-house"></i>
                             <span>Inicio</span>
                         </a>
                     </li>
+                    {% if user_type != 'admin' %}
                     <li>
                         <a href="{% url 'classroom' %}" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors {% if request.resolver_match.url_name == 'classroom' %}bg-white/10{% endif %}">
                             <i class="{% if request.resolver_match.url_name == 'classroom' %}fa-solid{% else %}fa-regular{% endif %} fa-address-book"></i>
                             <span>Salón de Clases</span>
                         </a>
                     </li>
+                    {% endif %}
                     {% if user_type == 'student' %}
                     <li>
                         <a href="{% url 'my_subjects' %}" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors {% if request.resolver_match.url_name == 'my_subjects' %}bg-white/10{% endif %}">
@@ -48,7 +50,7 @@
                             <span>Mis Materias</span>
                         </a>
                     </li>
-                    {% else %}
+                    {% elif user_type == 'teacher' %}
                     <li>
                         <a href="{% url 'manage_evaluations' %}" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors {% if request.resolver_match.url_name == 'manage_evaluations' %}bg-white/10{% endif %}">
                             <i class="{% if request.resolver_match.url_name == 'manage_evaluations' %}fa-solid{% else %}fa-regular{% endif %} fa-clipboard-list"></i>
@@ -56,15 +58,36 @@
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'student_reports' %}" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors {% if request.resolver_match.url_name == 'student_reports' %}bg-white/10{% endif %}">
-                            <i class="{% if request.resolver_match.url_name == 'student_reports' %}fa-solid{% else %}fa-regular{% endif %} fa-file-pdf"></i>
-                            <span>Boletines</span>
-                        </a>
-                    </li>
+
                     <li>
                         <a href="{% url 'teacher_subjects' %}" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors {% if request.resolver_match.url_name == 'teacher_subjects' %}bg-white/10{% endif %}">
                             <i class="{% if request.resolver_match.url_name == 'teacher_subjects' %}fa-solid{% else %}fa-regular{% endif %} fa-book"></i>
                             <span>Mis Materias</span>
+                        </a>
+                    </li>
+                    {% elif user_type == 'admin' %}
+                    <li>
+                        <a href="{% url 'manage_grades' %}" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors {% if request.resolver_match.url_name == 'manage_grades' %}bg-white/10{% endif %}">
+                            <i class="{% if request.resolver_match.url_name == 'manage_grades' %}fa-solid{% else %}fa-regular{% endif %} fa-layer-group"></i>
+                            <span>Gestionar Grados</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'manage_courses' %}" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors {% if request.resolver_match.url_name == 'manage_courses' %}bg-white/10{% endif %}">
+                            <i class="{% if request.resolver_match.url_name == 'manage_courses' %}fa-solid{% else %}fa-regular{% endif %} fa-book-open"></i>
+                            <span>Gestionar Materias</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'manage_users' %}" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors {% if request.resolver_match.url_name == 'manage_users' %}bg-white/10{% endif %}">
+                            <i class="{% if request.resolver_match.url_name == 'manage_users' %}fa-solid{% else %}fa-regular{% endif %} fa-user-cog"></i>
+                            <span>Gestionar Usuarios</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'student_reports' %}" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors {% if request.resolver_match.url_name == 'student_reports' %}bg-white/10{% endif %}">
+                            <i class="{% if request.resolver_match.url_name == 'student_reports' %}fa-solid{% else %}fa-regular{% endif %} fa-file-pdf"></i>
+                            <span>Boletines</span>
                         </a>
                     </li>
                     {% endif %}

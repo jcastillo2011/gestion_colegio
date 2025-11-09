@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import admin_views
 
 urlpatterns = [
     path('', views.home, name='home'),
@@ -20,4 +21,10 @@ urlpatterns = [
     path('student-report/<str:student_ci>/', views.generate_student_report, name='generate_student_report'),
     path('update-evaluations/', views.update_evaluations, name='update_evaluations'),
     path('logout/', views.logout_view, name='logout'),
+    
+    # URLs de Administrador
+    path('admin-dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
+    path('manage-grades/', admin_views.manage_grades, name='manage_grades'),
+    path('manage-courses/', admin_views.manage_courses, name='manage_courses'),
+    path('manage-users/', admin_views.manage_users, name='manage_users'),
 ]

@@ -40,13 +40,28 @@ class Student(models.Model):
 #### Tabla de Materia
 
 class Course(models.Model):
-    name_course = models.CharField(max_length=20)
+    name_course = models.CharField(max_length=50)
+    description = models.TextField(blank=True, null=True)
     teacher = models.ForeignKey(Teacher, verbose_name='assigned teacher', on_delete=models.SET_NULL, null=True, blank=True)
     grade = models.IntegerField(default=1)
 
-
     def __str__(self):
         return self.name_course
+
+#### Tabla de Grados (Nuevo modelo simple)
+
+class Grade(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    level = models.IntegerField(unique=True)
+    description = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        verbose_name = "Grade"
+        verbose_name_plural = "Grades"
+        ordering = ['level']
+    
+    def __str__(self):
+        return self.name
 
 
 #### Tabla de Evaluacion
@@ -67,6 +82,9 @@ class Punctuation(models.Model):
     evaluation = models.ForeignKey(Evaluation, on_delete=models.CASCADE)
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     score = models.DecimalField(max_digits=5, decimal_places=2)
+    
+    class Meta:
+        unique_together = ['evaluation', 'student']
     
 #### Tabla de Administradores
 
