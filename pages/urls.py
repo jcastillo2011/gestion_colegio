@@ -28,4 +28,7 @@ urlpatterns = [
     path('manage-courses/', admin_views.manage_courses, name='manage_courses'),
     path('manage-users/', admin_views.manage_users, name='manage_users'),
     path('system-logs/', admin_views.system_logs, name='system_logs'),
+    path('course-students/<int:course_id>/', admin_views.course_students, name='course_students'),
+    path('course-students-pdf/<int:course_id>/', admin_views.course_students_pdf, name='course_students_pdf'),
+    path('maintenance/', admin_views.maintenance, name='maintenance'),
 ]

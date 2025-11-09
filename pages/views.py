@@ -63,30 +63,44 @@ def register(request):
         # Determinar tipo de usuario automáticamente por email
         is_teacher = email.endswith('@profesor.edu') or email.endswith('@teacher.edu') or 'profesor' in email.lower()
         
-        try:
-            if is_teacher:
-                Teacher.objects.create(
-                    username=username,
-                    name=username,
-                    last_name='',
-                    ci=ci,
-                    email=email,
-                    password=password
-                )
-                messages.success(request, 'Profesor registrado exitosamente')
-            else:
-                Student.objects.create(
-                    username=username,
-                    name=username,
-                    last_name='',
-                    ci=ci,
-                    email=email,
-                    password=password
-                )
-                messages.success(request, 'Estudiante registrado exitosamente')
-            return redirect('home')
-        except:
-            messages.error(request, 'Error al registrar usuario. Verifique que el email y cédula no estén en uso')
+        # Validar duplicados
+        if (Student.objects.filter(ci=ci).exists() or 
+            Teacher.objects.filter(ci=ci).exists() or 
+            Admin.objects.filter(ci=ci).exists()):
+            messages.error(request, f'Ya existe un usuario con la cédula {ci}')
+        elif (Student.objects.filter(username=username).exists() or 
+              Teacher.objects.filter(username=username).exists() or 
+              Admin.objects.filter(username=username).exists()):
+            messages.error(request, f'Ya existe un usuario con el nombre de usuario "{username}"')
+        elif (Student.objects.filter(email=email).exists() or 
+              Teacher.objects.filter(email=email).exists() or 
+              Admin.objects.filter(email=email).exists()):
+            messages.error(request, f'Ya existe un usuario con el email {email}')
+        else:
+            try:
+                if is_teacher:
+                    Teacher.objects.create(
+                        username=username,
+                        name=username,
+                        last_name='',
+                        ci=ci,
+                        email=email,
+                        password=password
+                    )
+                    messages.success(request, 'Profesor registrado exitosamente')
+                else:
+                    Student.objects.create(
+                        username=username,
+                        name=username,
+                        last_name='',
+                        ci=ci,
+                        email=email,
+                        password=password
+                    )
+                    messages.success(request, 'Estudiante registrado exitosamente')
+                return redirect('home')
+            except Exception as e:
+                messages.error(request, f'Error al registrar usuario: {str(e)}')
     
     return render(request, 'registration/register.html')
 

@@ -1,7 +1,18 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.http import HttpResponse
 from model_students.models import Student, Teacher, Course, Admin, Grade
 from utils.logger import log_user_activity
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.units import inch
+from datetime import datetime
+import os
+import shutil
+from django.conf import settings
 
 def admin_required(view_func):
     def wrapper(request, *args, **kwargs):
@@ -57,9 +68,15 @@ def manage_grades(request):
             description = request.POST.get('description', '')
             
             try:
-                Grade.objects.create(name=name, level=level, description=description)
-                log_user_activity(request, 'CREATE', f'Creó grado: {name}')
-                messages.success(request, f'Grado "{name}" creado exitosamente')
+                # Validar duplicados
+                if Grade.objects.filter(name=name).exists():
+                    messages.error(request, f'Ya existe un grado con el nombre "{name}"')
+                elif Grade.objects.filter(level=level).exists():
+                    messages.error(request, f'Ya existe un grado con el nivel {level}')
+                else:
+                    Grade.objects.create(name=name, level=level, description=description)
+                    log_user_activity(request, 'CREATE', f'Creó grado: {name}')
+                    messages.success(request, f'Grado "{name}" creado exitosamente')
             except Exception as e:
                 messages.error(request, f'Error al crear grado: {str(e)}')
         
@@ -72,13 +89,20 @@ def manage_grades(request):
             try:
                 grade = Grade.objects.get(id=grade_id)
                 old_name = grade.name
-                grade.name = name
-                grade.level = level
-                grade.description = description
-                grade.save()
                 
-                log_user_activity(request, 'UPDATE', f'Actualizó grado: {old_name} → {name}')
-                messages.success(request, f'Grado "{name}" actualizado exitosamente')
+                # Validar duplicados excluyendo el registro actual
+                if Grade.objects.filter(name=name).exclude(id=grade_id).exists():
+                    messages.error(request, f'Ya existe un grado con el nombre "{name}"')
+                elif Grade.objects.filter(level=level).exclude(id=grade_id).exists():
+                    messages.error(request, f'Ya existe un grado con el nivel {level}')
+                else:
+                    grade.name = name
+                    grade.level = level
+                    grade.description = description
+                    grade.save()
+                    
+                    log_user_activity(request, 'UPDATE', f'Actualizó grado: {old_name} → {name}')
+                    messages.success(request, f'Grado "{name}" actualizado exitosamente')
             except Exception as e:
                 messages.error(request, f'Error al actualizar grado: {str(e)}')
         
@@ -119,17 +143,21 @@ def manage_courses(request):
             teacher_id = request.POST.get('teacher_id')
             
             try:
-                teacher = Teacher.objects.get(ci=teacher_id) if teacher_id else None
-                
-                Course.objects.create(
-                    name_course=name_course,
-                    description=description,
-                    grade=int(grade_id),
-                    teacher=teacher
-                )
-                
-                log_user_activity(request, 'CREATE', f'Creó materia: {name_course}')
-                messages.success(request, f'Materia "{name_course}" creada exitosamente')
+                # Validar duplicados
+                if Course.objects.filter(name_course=name_course, grade=int(grade_id)).exists():
+                    messages.error(request, f'Ya existe la materia "{name_course}" en el grado {grade_id}')
+                else:
+                    teacher = Teacher.objects.get(ci=teacher_id) if teacher_id else None
+                    
+                    Course.objects.create(
+                        name_course=name_course,
+                        description=description,
+                        grade=int(grade_id),
+                        teacher=teacher
+                    )
+                    
+                    log_user_activity(request, 'CREATE', f'Creó materia: {name_course}')
+                    messages.success(request, f'Materia "{name_course}" creada exitosamente')
             except Exception as e:
                 messages.error(request, f'Error al crear materia: {str(e)}')
         
@@ -143,14 +171,19 @@ def manage_courses(request):
             try:
                 course = Course.objects.get(id=course_id)
                 old_name = course.name_course
-                course.name_course = name_course
-                course.description = description
-                course.grade = int(grade_id)
-                course.teacher = Teacher.objects.get(ci=teacher_id) if teacher_id else None
-                course.save()
                 
-                log_user_activity(request, 'UPDATE', f'Actualizó materia: {old_name} → {name_course}')
-                messages.success(request, f'Materia "{name_course}" actualizada exitosamente')
+                # Validar duplicados excluyendo el registro actual
+                if Course.objects.filter(name_course=name_course, grade=int(grade_id)).exclude(id=course_id).exists():
+                    messages.error(request, f'Ya existe la materia "{name_course}" en el grado {grade_id}')
+                else:
+                    course.name_course = name_course
+                    course.description = description
+                    course.grade = int(grade_id)
+                    course.teacher = Teacher.objects.get(ci=teacher_id) if teacher_id else None
+                    course.save()
+                    
+                    log_user_activity(request, 'UPDATE', f'Actualizó materia: {old_name} → {name_course}')
+                    messages.success(request, f'Materia "{name_course}" actualizada exitosamente')
             except Exception as e:
                 messages.error(request, f'Error al actualizar materia: {str(e)}')
         
@@ -228,33 +261,47 @@ def manage_users(request):
             password = request.POST.get('password')
             
             try:
-                if user_type == 'student':
-                    grade_id = request.POST.get('grade_id')
+                # Validar duplicados globales
+                if (Student.objects.filter(ci=ci).exists() or 
+                    Teacher.objects.filter(ci=ci).exists() or 
+                    Admin.objects.filter(ci=ci).exists()):
+                    messages.error(request, f'Ya existe un usuario con la cédula {ci}')
+                elif (Student.objects.filter(username=username).exists() or 
+                      Teacher.objects.filter(username=username).exists() or 
+                      Admin.objects.filter(username=username).exists()):
+                    messages.error(request, f'Ya existe un usuario con el nombre de usuario "{username}"')
+                elif (Student.objects.filter(email=email).exists() or 
+                      Teacher.objects.filter(email=email).exists() or 
+                      Admin.objects.filter(email=email).exists()):
+                    messages.error(request, f'Ya existe un usuario con el email {email}')
+                else:
+                    if user_type == 'student':
+                        grade_id = request.POST.get('grade_id')
+                        
+                        Student.objects.create(
+                            username=username,
+                            name=name,
+                            last_name=last_name,
+                            ci=ci,
+                            email=email,
+                            password=password,
+                            grade=int(grade_id) if grade_id else 1
+                        )
+                        log_user_activity(request, 'CREATE', f'Creó estudiante: {name} {last_name}')
+                        messages.success(request, f'Estudiante "{name} {last_name}" creado exitosamente')
                     
-                    Student.objects.create(
-                        username=username,
-                        name=name,
-                        last_name=last_name,
-                        ci=ci,
-                        email=email,
-                        password=password,
-                        grade=int(grade_id) if grade_id else 1
-                    )
-                    log_user_activity(request, 'CREATE', f'Creó estudiante: {name} {last_name}')
-                    messages.success(request, f'Estudiante "{name} {last_name}" creado exitosamente')
-                
-                elif user_type == 'teacher':
-                    Teacher.objects.create(
-                        username=username,
-                        name=name,
-                        last_name=last_name,
-                        ci=ci,
-                        email=email,
-                        password=password
-                    )
-                    
-                    log_user_activity(request, 'CREATE', f'Creó profesor: {name} {last_name}')
-                    messages.success(request, f'Profesor "{name} {last_name}" creado exitosamente')
+                    elif user_type == 'teacher':
+                        Teacher.objects.create(
+                            username=username,
+                            name=name,
+                            last_name=last_name,
+                            ci=ci,
+                            email=email,
+                            password=password
+                        )
+                        
+                        log_user_activity(request, 'CREATE', f'Creó profesor: {name} {last_name}')
+                        messages.success(request, f'Profesor "{name} {last_name}" creado exitosamente')
                 
             except Exception as e:
                 messages.error(request, f'Error al crear usuario: {str(e)}')
@@ -267,31 +314,45 @@ def manage_users(request):
             email = request.POST.get('email')
             
             try:
-                if user_type == 'student':
-                    student = Student.objects.get(ci=user_id)
-                    old_name = f'{student.name} {student.last_name}'
-                    student.username = username
-                    student.name = name
-                    student.last_name = last_name
-                    student.email = email
-                    if request.POST.get('grade_id'):
-                        student.grade = int(request.POST.get('grade_id'))
-                    student.save()
-                    
-                    log_user_activity(request, 'UPDATE', f'Actualizó estudiante: {old_name} → {name} {last_name}')
-                    
-                elif user_type == 'teacher':
-                    teacher = Teacher.objects.get(ci=user_id)
-                    old_name = f'{teacher.name} {teacher.last_name}'
-                    teacher.username = username
-                    teacher.name = name
-                    teacher.last_name = last_name
-                    teacher.email = email
-                    teacher.save()
-                    
-                    log_user_activity(request, 'UPDATE', f'Actualizó profesor: {old_name} → {name} {last_name}')
-                    
-                messages.success(request, 'Usuario actualizado exitosamente')
+                # Validar duplicados excluyendo el usuario actual
+                username_exists = (Student.objects.filter(username=username).exclude(ci=user_id).exists() or 
+                                 Teacher.objects.filter(username=username).exclude(ci=user_id).exists() or 
+                                 Admin.objects.filter(username=username).exclude(ci=user_id).exists())
+                
+                email_exists = (Student.objects.filter(email=email).exclude(ci=user_id).exists() or 
+                              Teacher.objects.filter(email=email).exclude(ci=user_id).exists() or 
+                              Admin.objects.filter(email=email).exclude(ci=user_id).exists())
+                
+                if username_exists:
+                    messages.error(request, f'Ya existe un usuario con el nombre de usuario "{username}"')
+                elif email_exists:
+                    messages.error(request, f'Ya existe un usuario con el email {email}')
+                else:
+                    if user_type == 'student':
+                        student = Student.objects.get(ci=user_id)
+                        old_name = f'{student.name} {student.last_name}'
+                        student.username = username
+                        student.name = name
+                        student.last_name = last_name
+                        student.email = email
+                        if request.POST.get('grade_id'):
+                            student.grade = int(request.POST.get('grade_id'))
+                        student.save()
+                        
+                        log_user_activity(request, 'UPDATE', f'Actualizó estudiante: {old_name} → {name} {last_name}')
+                        
+                    elif user_type == 'teacher':
+                        teacher = Teacher.objects.get(ci=user_id)
+                        old_name = f'{teacher.name} {teacher.last_name}'
+                        teacher.username = username
+                        teacher.name = name
+                        teacher.last_name = last_name
+                        teacher.email = email
+                        teacher.save()
+                        
+                        log_user_activity(request, 'UPDATE', f'Actualizó profesor: {old_name} → {name} {last_name}')
+                        
+                    messages.success(request, 'Usuario actualizado exitosamente')
             except Exception as e:
                 messages.error(request, f'Error al actualizar usuario: {str(e)}')
         
@@ -327,3 +388,188 @@ def manage_users(request):
         'teachers': teachers,
         'grades': grades
     })
+
+@admin_required
+def course_students(request, course_id):
+    admin_id = request.session.get('user_id')
+    admin_data = Admin.objects.get(ci=admin_id)
+    
+    try:
+        course = Course.objects.get(id=course_id)
+        students = Student.objects.filter(grade=course.grade)
+        
+        # Filtros
+        search_name = request.GET.get('search_name', '')
+        search_ci = request.GET.get('search_ci', '')
+        
+        if search_name:
+            students = students.filter(name__icontains=search_name) | students.filter(last_name__icontains=search_name)
+        if search_ci:
+            students = students.filter(ci__icontains=search_ci)
+            
+        students = students.order_by('name', 'last_name')
+        
+        log_user_activity(request, 'VIEW', f'Consultó estudiantes de la materia: {course.name_course}')
+        
+        context = {
+            'user_type': 'admin',
+            'user_data': admin_data,
+            'course': course,
+            'students': students,
+            'search_name': search_name,
+            'search_ci': search_ci,
+        }
+        
+        return render(request, 'admin/course_students.html', context)
+        
+    except Course.DoesNotExist:
+        messages.error(request, 'La materia no existe')
+        return redirect('manage_courses')
+
+@admin_required
+def course_students_pdf(request, course_id):
+    try:
+        course = Course.objects.get(id=course_id)
+        students = Student.objects.filter(grade=course.grade)
+        
+        # Aplicar filtros
+        search_name = request.GET.get('search_name', '')
+        search_ci = request.GET.get('search_ci', '')
+        
+        if search_name:
+            students = students.filter(name__icontains=search_name) | students.filter(last_name__icontains=search_name)
+        if search_ci:
+            students = students.filter(ci__icontains=search_ci)
+            
+        students = students.order_by('name', 'last_name')
+        
+        # Crear PDF
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="estudiantes_{course.name_course}.pdf"'
+        
+        doc = SimpleDocTemplate(response, pagesize=A4)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Título
+        title = Paragraph(f"<b>Estudiantes de {course.name_course}</b>", styles['Title'])
+        elements.append(title)
+        elements.append(Spacer(1, 12))
+        
+        # Información del curso
+        info = Paragraph(f"<b>Grado:</b> {course.grade} | <b>Profesor:</b> {course.teacher or 'Sin asignar'} | <b>Fecha:</b> {datetime.now().strftime('%d/%m/%Y')}", styles['Normal'])
+        elements.append(info)
+        elements.append(Spacer(1, 20))
+        
+        # Tabla de estudiantes
+        data = [['Nº', 'Nombre Completo', 'Cédula', 'Email']]
+        for i, student in enumerate(students, 1):
+            data.append([str(i), f"{student.name} {student.last_name}", student.ci, student.email])
+        
+        table = Table(data, colWidths=[0.5*inch, 2.5*inch, 1.5*inch, 2.5*inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(table)
+        elements.append(Spacer(1, 20))
+        
+        # Total de estudiantes
+        total = Paragraph(f"<b>Total de estudiantes: {students.count()}</b>", styles['Normal'])
+        elements.append(total)
+        
+        doc.build(elements)
+        
+        log_user_activity(request, 'EXPORT', f'Exportó PDF de estudiantes de {course.name_course}')
+        return response
+        
+    except Course.DoesNotExist:
+        messages.error(request, 'La materia no existe')
+        return redirect('manage_courses')
+
+@admin_required
+def maintenance(request):
+    admin_id = request.session.get('user_id')
+    admin_data = Admin.objects.get(ci=admin_id)
+    
+    if request.method == 'GET':
+        log_user_activity(request, 'VIEW', 'Accedió a mantenimiento del sistema')
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'backup':
+            backup_path = request.POST.get('backup_path')
+            if not backup_path:
+                messages.error(request, 'Debe especificar la ruta de respaldo')
+            else:
+                try:
+                    # Verificar que la ruta existe
+                    if not os.path.exists(backup_path):
+                        messages.error(request, 'La ruta especificada no existe')
+                    else:
+                        # Crear nombre del archivo de respaldo
+                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                        backup_filename = f'backup_aula_virtual_{timestamp}.db'
+                        backup_full_path = os.path.join(backup_path, backup_filename)
+                        
+                        # Copiar la base de datos
+                        db_path = os.path.join(settings.BASE_DIR, 'db.sqlite3')
+                        shutil.copy2(db_path, backup_full_path)
+                        
+                        log_user_activity(request, 'BACKUP', f'Respaldó base de datos en: {backup_full_path}')
+                        messages.success(request, f'Respaldo creado exitosamente: {backup_filename}')
+                        
+                except Exception as e:
+                    messages.error(request, f'Error al crear respaldo: {str(e)}')
+        
+        elif action == 'restore':
+            restore_file = request.FILES.get('restore_file')
+            if not restore_file:
+                messages.error(request, 'Debe seleccionar un archivo de respaldo')
+            else:
+                try:
+                    # Verificar extensión del archivo
+                    if not restore_file.name.endswith('.db'):
+                        messages.error(request, 'El archivo debe tener extensión .db')
+                    else:
+                        # Crear respaldo de seguridad antes de restaurar
+                        db_path = os.path.join(settings.BASE_DIR, 'db.sqlite3')
+                        backup_current = os.path.join(settings.BASE_DIR, f'db_backup_before_restore_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db')
+                        shutil.copy2(db_path, backup_current)
+                        
+                        # Restaurar base de datos
+                        with open(db_path, 'wb+') as destination:
+                            for chunk in restore_file.chunks():
+                                destination.write(chunk)
+                        
+                        log_user_activity(request, 'RESTORE', f'Restauró base de datos desde: {restore_file.name}')
+                        messages.success(request, 'Base de datos restaurada exitosamente. Reinicie el servidor.')
+                        
+                except Exception as e:
+                    messages.error(request, f'Error al restaurar: {str(e)}')
+    
+    # Obtener información de la base de datos actual
+    db_path = os.path.join(settings.BASE_DIR, 'db.sqlite3')
+    db_size = 0
+    db_modified = None
+    
+    if os.path.exists(db_path):
+        db_size = os.path.getsize(db_path)
+        db_modified = datetime.fromtimestamp(os.path.getmtime(db_path))
+    
+    context = {
+        'user_type': 'admin',
+        'user_data': admin_data,
+        'db_size': db_size,
+        'db_modified': db_modified,
+    }
+    
+    return render(request, 'admin/maintenance.html', context)
